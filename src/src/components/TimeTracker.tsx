@@ -97,7 +97,7 @@ export const TimeTracker: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col p-4 max-w-md mx-auto h-[85vh]">
+        <div className="flex flex-col p-4 max-w-md mx-auto h-[85vh] safe-area-bottom">
             {/* Header */}
             <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm">
                 <div className="flex items-center gap-3">

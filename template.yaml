@@ -1,0 +1,218 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Wabash Process Tracker - AWS Migration
+
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: python3.11
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        PROCESSES_TABLE_NAME: !Ref ProcessesTable
+        WORK_LOGS_TABLE_NAME: !Ref WorkLogsTable
+        INGESTION_BUCKET_NAME: !Ref IngestionBucket
+
+Resources:
+  # --- DynamoDB Tables ---
+  ProcessesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  WorkLogsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+
+  # --- S3 Bucket ---
+  IngestionBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "wabash-ingestion-${AWS::AccountId}-${AWS::Region}"
+
+  # --- API Gateway ---
+  ProcessTrackerApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: "'GET,POST,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+        AllowOrigin: "'*'"
+
+  # --- Functions ---
+  GetProcessesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: aws_lambda/
+      Handler: handlers.get_processes
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProcessesTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ProcessTrackerApi
+            Path: /processes
+            Method: get
+
+  CreateProcessFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: aws_lambda/
+      Handler: handlers.create_process
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProcessesTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ProcessTrackerApi
+            Path: /processes
+            Method: post
+
+  DeleteProcessFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: aws_lambda/
+      Handler: handlers.delete_process
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProcessesTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ProcessTrackerApi
+            Path: /processes/{id}
+            Method: delete
+
+  StartWorkFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: aws_lambda/
+      Handler: handlers.start_work
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref WorkLogsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ProcessTrackerApi
+            Path: /work-log/start
+            Method: post
+
+  StopWorkFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: aws_lambda/
+      Handler: handlers.stop_work
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref WorkLogsTable
+        - DynamoDBWritePolicy:
+            TableName: !Ref WorkLogsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ProcessTrackerApi
+            Path: /work-log/stop
+            Method: post
+
+  StreamProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: aws_lambda/
+      Handler: handlers.stream_processor
+      Policies:
+        - S3WritePolicy:
+            BucketName: !Ref IngestionBucket
+      Events:
+        StreamEvent:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt WorkLogsTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+
+  # --- Frontend Hosting ---
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "wabash-frontend-${AWS::AccountId}-${AWS::Region}"
+      WebsiteConfiguration:
+        IndexDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: FrontendS3Origin
+            DomainName: !Select [2, !Split ["/", !GetAtt FrontendBucket.WebsiteURL]]
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+        DefaultCacheBehavior:
+          TargetOriginId: FrontendS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD]
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ProcessTrackerApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  IngestionBucketName:
+    Description: "S3 Bucket for Databricks Ingestion"
+    Value: !Ref IngestionBucket
+  FrontendUrl:
+    Description: "CloudFront HTTPS URL"
+    Value: !Sub "https://${FrontendDistribution.DomainName}"
+  FrontendBucketName:
+    Description: "S3 Bucket for Frontend (Sync files here)"
+    Value: !Ref FrontendBucket

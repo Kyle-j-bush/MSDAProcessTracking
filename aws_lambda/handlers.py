@@ -6,6 +6,8 @@ from datetime import datetime
 from decimal import Decimal
 
 # --- Configuration ---
+#If there are MSDA students after me then know that this is so you can deploy your own version of this app. 
+#Have so much fun with his
 PROCESSES_TABLE_NAME = os.environ.get("PROCESSES_TABLE_NAME")
 WORK_LOGS_TABLE_NAME = os.environ.get("WORK_LOGS_TABLE_NAME")
 INGESTION_BUCKET_NAME = os.environ.get("INGESTION_BUCKET_NAME")
@@ -58,8 +60,7 @@ def create_process(event, context):
             "is_active": True,
             "category": body.get("category", "general")
         }
-        # DynamoDB requires Decimals for floats, boto3 handles it often but good to be aware
-        # Here we just put standard types
+
         processes_table.put_item(Item=new_process)
         return _response(201, new_process)
     except Exception as e:
@@ -106,16 +107,7 @@ def stop_work(event, context):
     try:
         body = json.loads(event['body'])
         log_id = body.get("id")
-        person_name = body.get("person_name") # DynamoDB Key usually PK + SK if designed that way, 
-                                              # but here we might just use PK=id if checking simple implementation.
-                                              # Let's assume schema is ID as partition key for simplicity 
-                                              # OR person_name as PK and ID as SK. 
-                                              # Azure used person_name as PartitionKey.
-                                              # For DynamoDB, to read item we need primary key.
-                                              # We will assume Simple Primary Key = 'id' for WorkLogs in this migration plan 
-                                              # to avoid complex queries, unless we need to query by person.
-                                              # UPDATE: To allow direct GetItem, we need the Key.
-                                              # Let's assume Table Key is 'id'.
+        person_name = body.get("person_name")
         
         if not log_id:
             return _response(400, {"error": "Missing ID"})

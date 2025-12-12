@@ -39,7 +39,7 @@ function Nav() {
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-100 text-gray-900 font-sans pb-20">
+      <div className="min-h-dvh bg-gray-100 text-gray-900 font-sans pb-32">
         <OfflineBanner />
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
@@ -48,6 +48,8 @@ function App() {
           </Routes>
         </Suspense>
         <Nav />
+        {/* Version Label */}
+        <span className="fixed bottom-16 right-4 text-xs text-gray-400 bg-white/80 px-2 py-1 rounded shadow">V0.2</span>
       </div>
     </Router>
   );

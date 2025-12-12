@@ -21,4 +21,18 @@
   .safe-area-bottom {
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
   }
+
+  .spinner-spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
+  }
 }

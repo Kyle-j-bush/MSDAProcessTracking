@@ -5,6 +5,13 @@ import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import { Play, Square, User, Clock } from 'lucide-react';
 
+const Spinner = () => (
+    <svg className="w-8 h-8 spinner-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+);
+
 dayjs.extend(duration);
 
 export const TimeTracker: React.FC = () => {
@@ -46,6 +53,7 @@ export const TimeTracker: React.FC = () => {
     const handleStart = async () => {
         if (!selectedProcess || !personName) return;
         setLoading(true);
+        await new Promise(resolve => setTimeout(resolve, 500));
         try {
             const proc = processes.find(p => p.id === selectedProcess);
             const log = await api.startWork(personName, selectedProcess, proc?.name || 'Unknown');
@@ -60,6 +68,7 @@ export const TimeTracker: React.FC = () => {
     const handleStop = async () => {
         if (!activeLogId) return;
         setLoading(true);
+        await new Promise(resolve => setTimeout(resolve, 500));
         try {
             await api.stopWork(activeLogId, personName);
             endSession();
@@ -73,7 +82,7 @@ export const TimeTracker: React.FC = () => {
 
     if (!personName) {
         return (
-            <div className="flex flex-col items-center justify-center p-8 h-[80vh]">
+            <div className="flex flex-col items-center justify-center p-8 min-h-[calc(100dvh-8rem)]">
                 <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm text-center">
                     <div className="bg-purple-100 p-4 rounded-full inline-block mb-4">
                         <User className="w-8 h-8 text-primary" />
@@ -97,7 +106,7 @@ export const TimeTracker: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col p-4 max-w-md mx-auto h-[85vh] safe-area-bottom">
+        <div className="flex flex-col p-4 max-w-md mx-auto min-h-[calc(100dvh-8rem)] justify-between safe-area-bottom">
             {/* Header */}
             <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm">
                 <div className="flex items-center gap-3">
@@ -137,9 +146,9 @@ export const TimeTracker: React.FC = () => {
                     <button
                         onClick={handleStop}
                         disabled={loading}
-                        className="btn-danger flex items-center justify-center gap-4 mt-8"
+                        className="btn-danger flex items-center justify-center gap-4 mb-24"
                     >
-                        <Square className="w-8 h-8 fill-current" />
+                        {loading ? <Spinner /> : <Square className="w-8 h-8 fill-current" />}
                         STOP WORK
                     </button>
                 </div>
@@ -160,13 +169,13 @@ export const TimeTracker: React.FC = () => {
                         </select>
                     </div>
 
-                    <div className="flex-1 flex items-end pb-8">
+                    <div className="flex-1 flex items-end pb-24">
                         <button
                             onClick={handleStart}
                             disabled={!selectedProcess || loading}
                             className={`btn-success flex items-center justify-center gap-4 ${(!selectedProcess || loading) ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                            <Play className="w-8 h-8 fill-current" />
+                            {loading ? <Spinner /> : <Play className="w-8 h-8 fill-current" />}
                             START WORK
                         </button>
                     </div>

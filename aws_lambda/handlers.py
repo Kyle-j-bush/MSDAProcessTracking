@@ -8,6 +8,7 @@ from decimal import Decimal
 # --- Configuration ---
 #If there are MSDA students after me then know that this is so you can deploy your own version of this app. 
 #Have so much fun with his
+#You will know the comment is ai if it actually has good grammer
 PROCESSES_TABLE_NAME = os.environ.get("PROCESSES_TABLE_NAME")
 WORK_LOGS_TABLE_NAME = os.environ.get("WORK_LOGS_TABLE_NAME")
 INGESTION_BUCKET_NAME = os.environ.get("INGESTION_BUCKET_NAME")
@@ -39,7 +40,7 @@ def _response(status_code, body):
 
 def get_processes(event, context):
     try:
-        # Efficiently we might want a GSI for is_active, but scan is fine for low volume
+        # Efficiently we might want a GSI for is_active, but scan is fine for low volume and if future msda devs want to go crazy have fun with that 
         response = processes_table.scan(
             FilterExpression=boto3.dynamodb.conditions.Attr('is_active').eq(True)
         )
@@ -108,6 +109,7 @@ def stop_work(event, context):
         body = json.loads(event['body'])
         log_id = body.get("id")
         person_name = body.get("person_name")
+        status = body.get("status", "COMPLETED")  # Accept COMPLETED or FAIL
         
         if not log_id:
             return _response(400, {"error": "Missing ID"})
@@ -119,8 +121,8 @@ def stop_work(event, context):
             
         item = resp['Item']
 
-        if item.get("status") == "COMPLETED":
-            return _response(409, {"error": "Work already completed"})
+        if item.get("status") in ["COMPLETED", "FAIL"]:
+            return _response(409, {"error": "Work already finished"})
 
         # Update fields
         end_time_str = datetime.utcnow().isoformat() + "Z"
@@ -139,7 +141,7 @@ def stop_work(event, context):
             ExpressionAttributeValues={
                 ':e': end_time_str,
                 ':d': duration_seconds,
-                ':s': 'COMPLETED'
+                ':s': status
             },
             ReturnValues="ALL_NEW"
         )
@@ -150,7 +152,7 @@ def stop_work(event, context):
         updated_item.update({
             "end_timestamp": end_time_str,
             "duration": duration_seconds,
-            "status": "COMPLETED"
+            "status": status
         })
         
         return _response(200, updated_item)
@@ -169,11 +171,10 @@ def stream_processor(event, context):
                 new_image = record['dynamodb']['NewImage']
                 
                 # Deserialization from DynamoDB JSON format is needed
-                # But we can check status simply
                 status_dict = new_image.get('status', {})
                 status_val = status_dict.get('S') # String
-                
-                if status_val == 'COMPLETED':
+                #If you want add a new status here make sure to add it. Dont do what I did
+                if status_val in ['COMPLETED', 'FAIL']:
                     # Unmarshall
                     from boto3.dynamodb.types import TypeDeserializer
                     deserializer = TypeDeserializer()
@@ -195,4 +196,4 @@ def stream_processor(event, context):
                     
     except Exception as e:
         print(f"Stream processing error: {e}")
-        raise e # Raise to ensure Lambda marks batch as failed if needed, though for streams handling partial failures is safer.
+        raise e # Raise to ensure Lambda marks batch as failed if needed, though for streams handling partial failures is safer but im not trying do all that

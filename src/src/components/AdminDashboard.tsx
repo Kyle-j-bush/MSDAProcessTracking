@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api, Process } from '../api';
 import { PlusCircle, Loader2, Trash2 } from 'lucide-react';
 
-// ... (in AdminDashboard component)
+// not only does this admin store its password hard coded it also has it in the README. fun task for future msda memeber is to use AWS cypher or something to safley store the password
 
 export const AdminDashboard: React.FC = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);

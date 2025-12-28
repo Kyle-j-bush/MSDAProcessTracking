@@ -49,7 +49,7 @@ function App() {
         </Suspense>
         <Nav />
         {/* Version Label */}
-        <span className="fixed bottom-16 right-4 text-xs text-gray-400 bg-white/80 px-2 py-1 rounded shadow">V0.2</span>
+        <span className="fixed bottom-16 right-4 text-xs text-gray-400 bg-white/80 px-2 py-1 rounded shadow">V0.3</span>
       </div>
     </Router>
   );

@@ -13,7 +13,7 @@ export interface WorkLog {
     start_timestamp: string;
     end_timestamp?: string;
     duration?: number;
-    status: 'RUNNING' | 'COMPLETED';
+    status: 'RUNNING' | 'COMPLETED' | 'FAIL';
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -45,11 +45,11 @@ export const api = {
         return res.json();
     },
 
-    stopWork: async (logId: string, personName: string): Promise<WorkLog> => {
+    stopWork: async (logId: string, personName: string, status: 'COMPLETED' | 'FAIL' = 'COMPLETED'): Promise<WorkLog> => {
         const res = await fetch(`${API_BASE}/work-log/stop`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: logId, person_name: personName }),
+            body: JSON.stringify({ id: logId, person_name: personName, status }),
         });
         if (!res.ok) throw new Error('Failed to stop work');
         return res.json();

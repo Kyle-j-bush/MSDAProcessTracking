@@ -3,7 +3,7 @@ import { useStore } from '../store';
 import { api, Process } from '../api';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
-import { Play, Square, User, Clock } from 'lucide-react';
+import { Play, Square, User, Clock, CheckCircle, XCircle } from 'lucide-react';
 
 const Spinner = () => (
     <svg className="w-8 h-8 spinner-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -65,12 +65,12 @@ export const TimeTracker: React.FC = () => {
         }
     };
 
-    const handleStop = async () => {
+    const handleStop = async (status: 'COMPLETED' | 'FAIL') => {
         if (!activeLogId) return;
         setLoading(true);
         await new Promise(resolve => setTimeout(resolve, 500));
         try {
-            await api.stopWork(activeLogId, personName);
+            await api.stopWork(activeLogId, personName, status);
             endSession();
             setElapsed('00:00:00');
         } catch (e) {
@@ -143,14 +143,24 @@ export const TimeTracker: React.FC = () => {
                         </div>
                     </div>
 
-                    <button
-                        onClick={handleStop}
-                        disabled={loading}
-                        className="btn-danger flex items-center justify-center gap-4 mb-24"
-                    >
-                        {loading ? <Spinner /> : <Square className="w-8 h-8 fill-current" />}
-                        STOP WORK
-                    </button>
+                    <div className="flex gap-4 w-full mb-24">
+                        <button
+                            onClick={() => handleStop('COMPLETED')}
+                            disabled={loading}
+                            className="btn-success flex-1 flex items-center justify-center gap-2"
+                        >
+                            {loading ? <Spinner /> : <CheckCircle className="w-6 h-6" />}
+                            Completed
+                        </button>
+                        <button
+                            onClick={() => handleStop('FAIL')}
+                            disabled={loading}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-6 bg-amber-500 text-white text-xl font-bold rounded-2xl shadow-xl active:scale-95 transition-transform"
+                        >
+                            {loading ? <Spinner /> : <XCircle className="w-6 h-6" />}
+                            Scrap
+                        </button>
+                    </div>
                 </div>
             ) : (
                 /* IDLE STATE */
